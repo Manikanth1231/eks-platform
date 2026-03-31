@@ -1,0 +1,10 @@
+go1.22.0.linux-amd64.tar.gz
+*.tar.gz
+*.zip
+tools/pod-checker/pod-checker
+security-reports/
+*.tfstate
+*.tfstate.backup
+.terraform/
+__pycache__/
+*.pyc
