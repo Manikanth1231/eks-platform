@@ -1,23 +1,11 @@
 # ─── Prometheus ────────────────────────────────────────────────────────────────
 prometheus:
   prometheusSpec:
-    # How long to keep metrics data
     retention: 15d
-
-    # Storage for metrics
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
-
-    # Scrape all pods with prometheus annotations
+    # Use emptyDir instead of PVC to avoid storage class issues
+    storageSpec: {}
     podMonitorSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
-
-    # Resource limits
     resources:
       requests:
         cpu: 200m
@@ -25,18 +13,14 @@ prometheus:
       limits:
         cpu: 500m
         memory: 1Gi
-
   service:
     type: LoadBalancer
 
 # ─── Grafana ───────────────────────────────────────────────────────────────────
 grafana:
   adminPassword: "admin123"
-
   service:
     type: LoadBalancer
-
-  # Pre-load useful dashboards
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -46,26 +30,16 @@ grafana:
           type: file
           options:
             path: /var/lib/grafana/dashboards/default
-
-  # Import community dashboards by ID
   dashboards:
     default:
-      # Kubernetes cluster overview
       kubernetes-cluster:
         gnetId: 7249
         revision: 1
         datasource: Prometheus
-      # Node metrics
       node-exporter:
         gnetId: 1860
         revision: 27
         datasource: Prometheus
-      # Pod metrics
-      kubernetes-pods:
-        gnetId: 6417
-        revision: 1
-        datasource: Prometheus
-
   resources:
     requests:
       cpu: 100m
@@ -77,6 +51,7 @@ grafana:
 # ─── AlertManager ──────────────────────────────────────────────────────────────
 alertmanager:
   alertmanagerSpec:
+    storage: {}
     resources:
       requests:
         cpu: 50m
@@ -86,11 +61,9 @@ alertmanager:
         memory: 128Mi
 
 # ─── Node Exporter ─────────────────────────────────────────────────────────────
-# Collects CPU, memory, disk metrics from each node
 nodeExporter:
   enabled: true
 
 # ─── Kube State Metrics ────────────────────────────────────────────────────────
-# Collects K8s object metrics (deployments, pods, etc.)
 kubeStateMetrics:
   enabled: true
