@@ -1,0 +1,48 @@
+name: CD - Update Image Tags
+
+on:
+  workflow_run:
+    workflows: ["CI - Build, Scan and Push"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  update-image-tags:
+    name: Update image tags in GitOps repo
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get image tag
+        id: get-tag
+        run: |
+          SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)
+          echo "image_tag=main-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Update user-service image tag
+        run: |
+          sed -i "s|image:.*dev/user-service.*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/dev/user-service:${{ steps.get-tag.outputs.image_tag }}|g" \
+            k8s/apps/user-service/deployment.yaml
+
+      - name: Update order-service image tag
+        run: |
+          sed -i "s|image:.*dev/order-service.*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/dev/order-service:${{ steps.get-tag.outputs.image_tag }}|g" \
+            k8s/apps/order-service/deployment.yaml
+
+      - name: Update api-gateway image tag
+        run: |
+          sed -i "s|image:.*dev/api-gateway.*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/dev/api-gateway:${{ steps.get-tag.outputs.image_tag }}|g" \
+            k8s/apps/api-gateway/deployment.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/apps/
+          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ steps.get-tag.outputs.image_tag }}"
+          git push
